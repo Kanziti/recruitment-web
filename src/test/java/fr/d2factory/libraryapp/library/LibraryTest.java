@@ -11,6 +11,9 @@ import java.io.IOException;
 import java.util.List;
 
 import fr.d2factory.libraryapp.book.ISBN;
+import fr.d2factory.libraryapp.member.Member;
+import fr.d2factory.libraryapp.member.Resident;
+import fr.d2factory.libraryapp.member.Student;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -33,6 +36,11 @@ public class LibraryTest {
 
         bookRepository = BookRepository.getInstance();
         bookRepository.addBooks(books);
+
+        /* Create some members*/
+        Member studentFirstYear = new Student(1L, "Nicolas", 20f, true);
+        Member studentNotFirstYear = new Student(2L, "Marine", 10f, false);
+        Member resident = new Resident(3L, "Pierre", 30f);
     }
 
     @Test
@@ -62,10 +70,21 @@ public class LibraryTest {
         Assertions.assertEquals(expectedBook, foundedBook);
     }
 
+    @Test
+    void create_members(){
+        Member studentInFirstYear = new Student(1L, "Nicolas", 20f, true);
+        Member studentNotInFirstYear = new Student(2L, "Marine", 10f, false);
+        Member resident = new Resident(3L, "Pierre", 30f);
+
+        Assertions.assertEquals("Nicolas", studentInFirstYear.getMemberName());
+        Assertions.assertEquals("Marine", studentNotInFirstYear.getMemberName());
+        Assertions.assertEquals("Pierre", resident.getMemberName());
+    }
+
 
     @Test
     void member_can_borrow_a_book_if_book_is_available(){
-        Assertions.fail("Implement me");
+
     }
 
     @Test
@@ -75,22 +94,30 @@ public class LibraryTest {
 
     @Test
     void residents_are_taxed_10cents_for_each_day_they_keep_a_book(){
-        Assertions.fail("Implement me");
+        Member resident = new Resident(3L, "Pierre", 30f);
+        resident.payBook(20); // 20 days * 0.10eu = 2.0eu
+        Assertions.assertEquals(28f, resident.getWallet());
     }
 
     @Test
     void students_pay_10_cents_the_first_30days(){
-        Assertions.fail("Implement me");
+        Member studentNotInFirstYear = new Student(2L, "Marine", 10f, false);
+        studentNotInFirstYear.payBook(30); // 30 days * 0.10eu = 3.0eu : 10-3.0 = 7
+        Assertions.assertEquals(7f,studentNotInFirstYear.getWallet());
     }
 
     @Test
     void students_in_1st_year_are_not_taxed_for_the_first_15days(){
-        Assertions.fail("Implement me");
+        Member studentInFirstYear = new Student(1L, "Nicolas", 20f, true);
+        studentInFirstYear.payBook(30); // first 15 days free + 15 days * 0.10eu = 1.50eu : 20-1.50 = 18.5
+        Assertions.assertEquals(18.5f,studentInFirstYear.getWallet());
     }
     
     @Test
     void residents_pay_20cents_for_each_day_they_keep_a_book_after_the_initial_60days(){
-        Assertions.fail("Implement me");
+        Member resident = new Resident(3L, "Pierre", 30f);
+        resident.payBook(61); // 60 days * 0.10eu + 1 day * 0.2eu = 6.2eu : 30-6.2 = 23.8
+        Assertions.assertEquals(23.8f,resident.getWallet());
     }
 
     @Test
