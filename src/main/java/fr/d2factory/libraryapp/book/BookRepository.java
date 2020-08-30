@@ -9,24 +9,54 @@ import java.util.Map;
  * The book repository emulates a database via 2 HashMaps
  */
 public class BookRepository {
-    private Map<ISBN, Book> availableBooks = new HashMap<>();
-    private Map<Book, LocalDate> borrowedBooks = new HashMap<>();
+    private static volatile BookRepository instance = null;
+    private static final Map<ISBN, Book> availableBooks = new HashMap<>();
+    private static final Map<Book, LocalDate> borrowedBooks = new HashMap<>();
+
+    // Singleton pattern to keep one instance of this repository class
+    private BookRepository() {}
+    public static BookRepository getInstance(){
+        if(instance == null){
+            synchronized (BookRepository.class){
+                instance = new BookRepository();
+            }
+        }
+        return instance;
+    }
+
+    public void addBook(ISBN isbn, Book book) {
+        availableBooks.put(isbn, book);
+    }
 
     public void addBooks(List<Book> books){
-        //TODO implement the missing feature
+        books.forEach(book -> {
+            this.addBook(book.isbn, book);
+        });
     }
 
     public Book findBook(long isbnCode) {
-        //TODO implement the missing feature
-        return null;
+        return availableBooks.get(new ISBN(isbnCode));
     }
 
     public void saveBookBorrow(Book book, LocalDate borrowedAt){
-        //TODO implement the missing feature
+        borrowedBooks.put(book, borrowedAt);
+        availableBooks.remove(book.getIsbn());
     }
 
     public LocalDate findBorrowedBookDate(Book book) {
-        //TODO implement the missing feature
-        return null;
+        return borrowedBooks.get(book);
+    }
+
+    public void saveBookReturn(Book book){
+        availableBooks.put(book.getIsbn(), book);
+        borrowedBooks.remove(book);
+    }
+
+    public Map<ISBN, Book> getAvailableBooks() {
+        return availableBooks;
+    }
+
+    public Map<Book, LocalDate> getBorrowedBooks() {
+        return borrowedBooks;
     }
 }
