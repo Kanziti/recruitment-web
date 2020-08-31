@@ -1,5 +1,9 @@
 package fr.d2factory.libraryapp.book;
 
+import fr.d2factory.libraryapp.library.BookNotAvailableException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
@@ -24,8 +28,12 @@ public class BookRepository {
         return instance;
     }
 
+    Logger logger = LoggerFactory.getLogger(BookRepository.class);
+
     public void addBook(ISBN isbn, Book book) {
         availableBooks.put(isbn, book);
+
+        //logger.info("added book : "+book.toString());
     }
 
     public void addBooks(List<Book> books){
@@ -35,7 +43,12 @@ public class BookRepository {
     }
 
     public Book findBook(long isbnCode) {
-        return availableBooks.get(new ISBN(isbnCode));
+        ISBN LookFor = new ISBN(isbnCode);
+        if(availableBooks.containsKey(LookFor)){
+            return availableBooks.get(new ISBN(isbnCode));
+        }else{
+            throw new BookNotAvailableException(isbnCode);
+        }
     }
 
     public void saveBookBorrow(Book book, LocalDate borrowedAt){

@@ -1,6 +1,12 @@
 package fr.d2factory.libraryapp.member;
 
+import fr.d2factory.libraryapp.library.WalletInsufficientCreditException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class Student extends Member {
+
+    Logger logger = LoggerFactory.getLogger(Student.class);
 
     /* A student, regardless of what year they are in, keeps a book
     for more than 30 days they are considered to be "late"*/
@@ -23,6 +29,7 @@ public class Student extends Member {
     public void payBook(int numberOfDays) {
         // Check the period of borrow
         boolean isInLatePeriod = (numberOfDays > numberOfDaysAllowedToKeepBooks);
+        float initialWallet = getWallet();
         float amountDue = 0f;
         int freeDays = isInFirstYear ? numberOfDaysFreeForFirstYear : 0;
         if(isInLatePeriod){
@@ -33,7 +40,12 @@ public class Student extends Member {
             amountDue = (numberOfDays - freeDays) * pricePerDay;
         }
 
-        this.setWallet(getWallet() - amountDue);
+        if(amountDue <= initialWallet){
+            this.setWallet(getWallet() - amountDue);
+        }else{
+            throw new WalletInsufficientCreditException(amountDue);
+        }
+        logger.info(this.getMemberName()+ " payed a sum of "+ amountDue + " for "+numberOfDays+" day(s)");
 
     }
 

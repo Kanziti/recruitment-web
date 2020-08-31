@@ -6,10 +6,6 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import fr.d2factory.libraryapp.book.Book;
 import fr.d2factory.libraryapp.book.BookRepository;
-import java.io.File;
-import java.io.IOException;
-import java.util.List;
-
 import fr.d2factory.libraryapp.book.ISBN;
 import fr.d2factory.libraryapp.member.Member;
 import fr.d2factory.libraryapp.member.Resident;
@@ -17,6 +13,11 @@ import fr.d2factory.libraryapp.member.Student;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import java.io.File;
+import java.io.IOException;
+import java.time.LocalDate;
+import java.util.List;
 
 /**
  * Do not forget to consult the README.md :)
@@ -26,7 +27,6 @@ public class LibraryTest {
     private BookRepository bookRepository;
     private static List<Book> books;
 
-
     @BeforeEach
     void setup() throws JsonParseException, JsonMappingException, IOException {
         ObjectMapper mapper = new ObjectMapper();
@@ -34,13 +34,12 @@ public class LibraryTest {
         books = mapper.readValue(booksJson, new TypeReference<List<Book>>() {
         });
 
+        library = LibraryImpl.getInstance();
+        LibraryRegistry libraryRegistry = LibraryRegistry.getInstance();
         bookRepository = BookRepository.getInstance();
+
         bookRepository.addBooks(books);
 
-        /* Create some members*/
-        Member studentFirstYear = new Student(1L, "Nicolas", 20f, true);
-        Member studentNotFirstYear = new Student(2L, "Marine", 10f, false);
-        Member resident = new Resident(3L, "Pierre", 30f);
     }
 
     @Test
@@ -53,14 +52,11 @@ public class LibraryTest {
     void add_book_to_library(){
         ISBN isbn = new ISBN(123456789L);
         Book book = new Book("Emma","Jane Austen", isbn);
-        bookRepository.addBook(isbn, book);
-        Assertions.assertEquals(1, bookRepository.getAvailableBooks().size());
-    }
 
-    @Test
-    void add_List_of_books_in_library(){
-        //bookRepository.addBooks(books); // books from JSON File
-        Assertions.assertEquals(4, bookRepository.getAvailableBooks().size(), "list of "+ books.size() +" books have to be injected in library");
+        int numberOfExistingBooks = bookRepository.getAvailableBooks().size();
+        bookRepository.addBook(isbn, book);
+        int actualNumberOfExistingBooks = bookRepository.getAvailableBooks().size();
+        Assertions.assertEquals(numberOfExistingBooks + 1, actualNumberOfExistingBooks);
     }
 
     @Test
@@ -84,12 +80,46 @@ public class LibraryTest {
 
     @Test
     void member_can_borrow_a_book_if_book_is_available(){
+        Member student0 = new Student(10L,"Rachelle",50f,true);
+        //try to borrow unavailable book (isbn : 93325648793) -> Should throw BookNotAvailable Exception
+        Assertions.assertThrows(BookNotAvailableException.class,
+                ()->library.borrowBook(93325648793L,student0, LocalDate.parse("2020-08-31")));
 
+        //try to borrow an available book (isbn : 3326456467846) -> member can borrow it
+        Book availableBook = bookRepository.findBook(3326456467846L);
+        Assertions.assertEquals(availableBook, library.borrowBook(3326456467846L,student0, LocalDate.parse("2020-08-31")));
     }
 
     @Test
     void borrowed_book_is_no_longer_available(){
-        Assertions.fail("Implement me");
+        Member student1 = new Student(1L,"Pierre",50f,true);
+
+        /* student1 borrow the book with ISBN 3326456467846 */
+        Book book1 = library.borrowBook(3326456467846L,student1, LocalDate.parse("2020-05-18"));
+
+        /* the book with ISBN 3326456467846 is no longer available */
+        Member resident1 = new Resident(2L, "Nicolas", 20f);
+
+        /* when resident1 try to borrow this book we should have BookNotAvailableException*/
+        Assertions.assertThrows(BookNotAvailableException.class, ()->
+                library.borrowBook(3326456467846L,resident1, LocalDate.parse("2020-05-18")));
+    }
+
+    @Test
+    void members_can_return_borrowed_book(){
+        Member student2 = new Student(2L, "Marine", 10f, false);
+        Book book = library.borrowBook(465789453149L, student2, LocalDate.parse("2020-08-21"));
+
+        library.returnBook(book, student2);
+    }
+
+    @Test
+    void members_cannot_pay_if_they_have_not_enough_wallet_credit(){
+        //Create Member resident with 1 eu in wallet -> 10 days
+        Member resident = new Resident(3L, "Pierre", 1f);
+
+        // Pay 11 days (11*0.10= 1.1eu > 1.0 in this resident wallet --> should throw Exception
+        Assertions.assertThrows(WalletInsufficientCreditException.class, ()-> resident.payBook(11));
     }
 
     @Test
@@ -122,6 +152,23 @@ public class LibraryTest {
 
     @Test
     void members_cannot_borrow_book_if_they_have_late_books(){
-        Assertions.fail("Implement me");
+        // Student case
+        Member student1 = new Student(3L,"Paul",10f,true);
+
+        // student1 has borrowed a book for 31 days ago -> is late !
+        Book book1 = library.borrowBook(3326456467846L,student1, LocalDate.now().minusDays(31));
+
+        // When student1 try to borrow  another book -> we should have an HasLateBooksException
+        Assertions.assertThrows(HasLateBooksException.class, ()-> library.borrowBook(968787565445L,student1, LocalDate.parse("2020-08-31")));
+
+        // Resident case
+        Member resident1 = new Resident(2L,"Michel",20f);
+
+        // resident1 has borrowed a book for 61 days ago -> is late !
+        Book book3 = library.borrowBook(465789453149L,resident1, LocalDate.now().minusDays(61));
+
+        // When resident1 try to borrow  another book -> we should have an HasLateBooksException
+        Assertions.assertThrows(HasLateBooksException.class, ()-> library.borrowBook(968787565445L,resident1, LocalDate.parse("2020-08-31")));
     }
+
 }
